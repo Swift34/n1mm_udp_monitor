@@ -17,7 +17,6 @@ import select
 import xml.etree.ElementTree as ET
 import tkinter as tk
 import tkinter.font as tkFont
-import tkinter.ttk as ttk
 
 
 UDP_IP = "127.0.0.1"
@@ -46,11 +45,6 @@ class UDP_Listener(Thread):
         self.app = app
         self.keeping_running = True
         print(f"Listening on {UDP_IP}:{UDP_PORT}")
-        # Keep track of the values that we receive via udp
-        self.snt = 0
-        self.sntnr = 0
-        self.radio = 0
-        self.freq = 0
         
     def stop(self):
         self.keeping_running = False
@@ -74,7 +68,7 @@ class UDP_Listener(Thread):
                  
                 n1mm_xml = ET.fromstring(datagram)
                 # Need to check if we have a <contactinfo> frame and ignore the rest
-                print(n1mm_xml.tag)
+                #print(n1mm_xml.tag)
                 info = ''
                 match n1mm_xml.tag:
                     case 'contactinfo':
@@ -95,8 +89,8 @@ class UDP_Listener(Thread):
                         #self.app.master.bandValue.set(f'{self.band}')
                         temp2 = f'{self.band} {self.mode}'
                         self.app.master.modeValue.set(temp2)
-
                         info = "QSO datagram received."
+
                     case 'RadioInfo':
                         self.radio = n1mm_xml.find('RadioNr').text
                         self.freq = n1mm_xml.find('Freq').text
@@ -113,24 +107,27 @@ class UDP_Listener(Thread):
                             self.app.master.radio1Value.set(freq_text)
                         elif(self.radio=='2'):
                             self.app.master.radio2Value.set(freq_text)
-                        
                         info = f'RadioNr:{self.radio} Freq:{self.freq}'
+
                     case 'spot':
                         self.dxcall = n1mm_xml.find('dxcall').text
                         self.frequency = n1mm_xml.find('frequency').text
-                        self.spottercall = n1mm_xml.find('spottercall').text
+                        #self.spottercall = n1mm_xml.find('spottercall').text
                         self.mode = n1mm_xml.find('mode').text
-                        spotstring = f'Spot:{self.dxcall} at {self.frequency}'
-                        self.app.master.spotValue.set(spotstring)
+                        spotstring = f'{self.dxcall} at {self.frequency} {self.mode}'
+                        #self.app.master.spot_var.set(spotstring)
+                        self.app.master.spotBox.insert(0, spotstring)
                         #info = f'Spot:{self.dxcall} at {self.frequency}'
-                        #info = spotstring
+                        info = spotstring
+                    
                     case _:
                         info = f'We just received an unexpected {n1mm_xml.tag} frame.'
                 print(info)
 
 
 
-class App(ttk.Frame):
+
+class App(tk.Frame):
     """
         App - App class that instantiates all other classes and manages
                 the GUI
@@ -139,11 +136,11 @@ class App(ttk.Frame):
         super().__init__(master)
         self.master = master # The GUI tk.Frame
         self.sock = sock
-        #self.pack()
+        self.spot_items = ['Ric Sanders - KN4FTT - Author', 'John Huggins - KX4O - Author']
         self.create_radio_widgets()
         self.create_qso_widgets()
         self.create_spot_widgets()
-        self.resize_grid()
+        #self.resize_grid()
         self.udp_listener = None
         self.start_udp_listener()
 
@@ -158,14 +155,27 @@ class App(ttk.Frame):
         self.master.spotLabel['bg'] = BACKGROUND_COLOR
         self.master.spotLabel['fg'] = TEXT_COLOR_HEADING
         self.master.spotLabel['font'] = self.master.label_font
-        self.master.spotLabel.grid(row=7, column=0, padx=0, pady=0)
+        self.master.spotLabel.grid(row=7, column=0, padx=0, pady=0, sticky=tk.W)
         # Values
-        self.master.spotValue = tk.StringVar()
-        self.master.spot = tk.Entry(self.master, width=50)
-        self.master.spot['font'] = self.master.spot_font
-        self.master.spot['bg'] = BACKGROUND_COLOR
-        self.master.spot['fg'] = TEXT_COLOR_RADIO
-        self.master.spot.grid(row=8, column=0, columnspan=2)
+        # self.master.spotValue = tk.StringVar()
+        # self.master.spot = tk.Entry(self.master, width=50)
+        # self.master.spot['font'] = self.master.spot_font
+        # self.master.spot['bg'] = BACKGROUND_COLOR
+        # self.master.spot['fg'] = TEXT_COLOR_RADIO
+        # self.master.spot.grid(row=8, column=0, columnspan=2)
+        #self.master.list_items = tk.Variable(value=self.spot_items)
+
+        # Changed the Spot's widget into a ListBox that will scroll away as more spots come in.
+        self.master.spot_var = tk.StringVar()
+        self.master.spot_var.set(self.spot_items)
+        self.master.spotBox = tk.Listbox(self.master, listvariable=self.master.spot_var, height=5, width=30)
+        self.master.spotBox['bg'] = BACKGROUND_COLOR
+        self.master.spotBox['fg'] = TEXT_COLOR_HEADING
+        self.master.spotBox['font'] = self.master.spot_font
+        self.master.spotBox.grid(row=7, column=0, columnspan=2, padx=0, pady=0)
+
+
+
 
     def create_radio_widgets(self):
         # Fonts to use
@@ -282,16 +292,6 @@ class App(ttk.Frame):
         self.master.serial_number['fg'] = TEXT_COLOR_SERIAL
         self.master.serial_number.grid(row=4,column=1,rowspan=3, columnspan=1)
 
-    def resize_grid(self):
-        # # self.master is root or master
-        # col_count, row_count = self.master.grid_size()
-
-        # for col in range(col_count):
-        #     self.master.grid_columnconfigure(col, minsize = 10)
-
-        # for row in range(row_count):
-        #     self.master.grid_rowconfigure(row, minsize = 10)
-        pass
         
         
     def mainloop(self, *args):
