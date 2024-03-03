@@ -21,7 +21,7 @@ UDP_PORT = 12060 # default for N1MM
 UDP_BUF_SIZE = 4096 # in bytes
 SN_FONT_SIZE = 48
 RADIO_FONT_SIZE = 40
-LABEL_FONT_SIZE = 20
+LABEL_FONT_SZIE = 20
 
 
 class UDP_Listener(Thread):
@@ -70,14 +70,14 @@ class UDP_Listener(Thread):
                         self.sntnr = n1mm_xml.find('sntnr').text    #This represents the last number sent
                         info = f'snrnr:{self.sntnr}'
                         next_number = int(self.sntnr) + 1
-                        #next_number_text = str(next_number)
-                        self.app.master.serial_numberValue.set(f'{next_number:04}')
+                        next_number_text = str(next_number)
+                        self.app.master.serial_numberValue.set(next_number_text)
                     case 'RadioInfo':
                         self.radio = n1mm_xml.find('RadioNr').text
                         self.freq = n1mm_xml.find('Freq').text
                         freq_hundred = self.freq[-2:]
                         freq_kilo = self.freq[:len(self.freq)-2]
-                        freq_text = f'{freq_kilo}.{freq_hundred}'
+                        freq_text = f'{freq_kilo}.{freq_hundred} kHz'
                         if(self.radio=='1'):
                             self.app.master.radio1Value.set(freq_text)
                         elif(self.radio=='2'):
@@ -110,47 +110,52 @@ class App(ttk.Frame):
         # Fonts to use
         # self.master.label_font = tkFont.Font(family="Helvetiva", size=LABEL_FONT_SZIE, weight='bold')
         # self.master.radio_font = tkFont.Font(family="Helvetiva", size=RADIO_FONT_SIZE, weight='bold')
-        self.master.label_font = tkFont.Font(family="Arial", size=LABEL_FONT_SIZE, weight='bold')
+        self.master.label_font = tkFont.Font(family="Arial", size=LABEL_FONT_SZIE, weight='bold')
         self.master.radio_font = tkFont.Font(family="Arial", size=RADIO_FONT_SIZE, weight='bold')
 
-        self.master.radio1Label = tk.Label(self.master)
+        self.master.radio1Label = ttk.Label(self.master)
         self.master.radio1Label['text'] = 'Radio #1'
         self.master.radio1Label['font'] = self.master.label_font
-        self.master.radio1Label.grid(row=0,column=0,padx=0,pady=0)
-        self.master.radio2Label = tk.Label(self.master)
-        self.master.radio2Label['text'] = 'Radio #2'
-        self.master.radio2Label['font'] = self.master.label_font
-        self.master.radio2Label.grid(row=0,column=1,padx=0,pady=0)
+        self.master.radio1Label.pack(side=tk.LEFT)
+        #self.master.radio1Label.grid(row=0,column=0,padx=0,pady=0)
         self.master.radio1Value = tk.StringVar()
-        self.master.radio1 = tk.Entry(self.master, width=9)
+        self.master.radio1 = ttk.Entry(self.master, width=12)
         self.master.radio1['textvariable'] = self.master.radio1Value
         self.master.radio1['font'] = self.master.radio_font
-        self.master.radio1.grid(row=1,column=0, rowspan=2)
+        self.master.radio1.pack(side=tk.LEFT)
+        #self.master.radio1.grid(row=1,column=0, rowspan=2)
+
+        self.master.radio2Label = ttk.Label(self.master)
+        self.master.radio2Label['text'] = 'Radio #2'
+        self.master.radio2Label['font'] = self.master.label_font
+        self.master.radio2Label.pack(side=tk.RIGHT)
+        #self.master.radio2Label.grid(row=0,column=1,padx=0,pady=0)
         self.master.radio2Value = tk.StringVar()
-        self.master.radio2 = tk.Entry(self.master, width=9)
+        self.master.radio2 = ttk.Entry(self.master, width=12)
         self.master.radio2['textvariable'] = self.master.radio2Value
         self.master.radio2['font'] = self.master.radio_font
-        self.master.radio2.grid(row=1,column=1, rowspan=2)
+        self.master.radio2.pack(side=tk.RIGHT)
+        #self.master.radio2.grid(row=1,column=1, rowspan=2)
 
 
 
     def create_sn_widgets(self):
         # Fonts to use
-        self.master.label_font = tkFont.Font(family="Helvetiva", size=LABEL_FONT_SIZE, weight='bold')
+        self.master.label_font = tkFont.Font(family="Helvetiva", size=LABEL_FONT_SZIE, weight='bold')
         self.master.serial_number_font = tkFont.Font(family="Helvetiva", size=SN_FONT_SIZE, weight='bold')
 
         self.master.serial_numberLabel = tk.Label(self.master)
         self.master.serial_numberLabel['text'] = 'Next Serial Number'
         self.master.serial_numberLabel['font'] = self.master.label_font
-        self.master.serial_numberLabel.grid(row=3,column=0,columnspan=2)
+        #self.master.serial_numberLabel.grid(row=3,column=0,columnspan=2)
         self.master.serial_numberValue = tk.StringVar()
-        self.master.serial_number = tk.Entry(self.master, width=4)
+        self.master.serial_number = tk.Entry(self.master)
         self.master.serial_number['textvariable'] = self.master.serial_numberValue
         self.master.serial_number['font'] = self.master.serial_number_font
-        self.master.serial_number.grid(row=4,column=0,rowspan=2, columnspan=2)
+        #self.master.serial_number.grid(row=4,column=0,rowspan=2, columnspan=2)
 
     def resize_grid(self):
-        # # self.master is root or master
+        # self.master is root or master
         # col_count, row_count = self.master.grid_size()
 
         # for col in range(col_count):
@@ -178,7 +183,7 @@ def main():
                           socket.SOCK_DGRAM) # UDP
     sock.bind((UDP_IP, UDP_PORT))
     root = tk.Tk()
-    root.geometry('725x250')
+    root.geometry('500x75')
     root.wm_title('UDP Listener')
 
     app = App(sock,master=root)
