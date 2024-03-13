@@ -17,21 +17,9 @@ import select
 import xml.etree.ElementTree as ET
 import tkinter as tk
 import tkinter.font as tkFont
-
-
-UDP_IP = "127.0.0.1"
-UDP_PORT = 12060 # default for N1MM
-UDP_BUF_SIZE = 8192 # in bytes
-SN_FONT_SIZE = 140
-SN_FONT_SIZE = 140
-RADIO_FONT_SIZE = 50
-LABEL_FONT_SIZE = 30
-QSO_FONT_SIZE = 40
-SPOT_FONT_SIZE = 20
-BACKGROUND_COLOR = "purple"
-TEXT_COLOR_HEADING = "yellow"
-TEXT_COLOR_SERIAL = "orange"
-TEXT_COLOR_RADIO = "orange"
+import configparser
+import argparse
+import os.path
 
 
 class UDP_Listener(Thread):
@@ -44,7 +32,7 @@ class UDP_Listener(Thread):
         self.sock = sock
         self.app = app
         self.keeping_running = True
-        print(f"Listening on {UDP_IP}:{UDP_PORT}")
+        print(f"Listening on {config.udp_ip}:{config.udp_port}")
         
     def stop(self):
         self.keeping_running = False
@@ -57,7 +45,7 @@ class UDP_Listener(Thread):
             rfds, _wfds, _xfds = select.select([self.sock], [], [], 0.5)
             if self.sock in rfds:
                 try:
-                    datagram, addr = self.sock.recvfrom(UDP_BUF_SIZE)
+                    datagram, addr = self.sock.recvfrom(config.udp_buf_size)
                 except self.sock.error as err:
                     print(f"Error from receiving socket {err}")
                     
@@ -95,7 +83,7 @@ class UDP_Listener(Thread):
                         self.radio = n1mm_xml.find('RadioNr').text
                         self.freq = n1mm_xml.find('Freq').text
                         self.mode = n1mm_xml.find('Mode').text
-                        freq_hundred = self.freq[-2:]
+                        #freq_hundred = self.freq[-2:]
                         freq_kilo = self.freq[:len(self.freq)-2]
                         freq_mode = self.mode
                         # Combine freq and mode into one variable
@@ -124,9 +112,6 @@ class UDP_Listener(Thread):
                         info = f'We just received an unexpected {n1mm_xml.tag} frame.'
                 print(info)
 
-
-
-
 class App(tk.Frame):
     """
         App - App class that instantiates all other classes and manages
@@ -137,6 +122,18 @@ class App(tk.Frame):
         self.master = master # The GUI tk.Frame
         self.sock = sock
         self.spot_items = ['Ric Sanders - KN4FTT - Author', 'John Huggins - KX4O - Author']
+        # Fonts to use
+        self.master.spot_font = tkFont.Font(family=config.spot_font
+                                            , size=config.spot, weight='bold')
+        self.master.label_font = tkFont.Font(family=config.label_font
+                                             , size=config.label, weight='bold')
+        self.master.radio_font = tkFont.Font(family=config.radio_font
+                                             , size=config.radio, weight='bold')
+        self.master.serial_num_font = tkFont.Font(family=config.serial_num_font
+                                                  , size=config.serial_num, weight='bold')
+        self.master.qso_font = tkFont.Font(family=config.qso_font
+                                           , size=config.qso, weight='bold')
+        
         self.create_radio_widgets()
         self.create_qso_widgets()
         self.create_spot_widgets()
@@ -145,55 +142,36 @@ class App(tk.Frame):
         self.start_udp_listener()
 
     def create_spot_widgets(self):
-        # Font to use
-        self.master.spot_font = tkFont.Font(family="Courier New", size=SPOT_FONT_SIZE, weight='bold')
-        self.master.label_font = tkFont.Font(family="Courier New", size=LABEL_FONT_SIZE, weight='bold')
-
         # Labels
         self.master.spotLabel = tk.Label(self.master)
         self.master.spotLabel['text'] = 'Spots'
-        self.master.spotLabel['bg'] = BACKGROUND_COLOR
-        self.master.spotLabel['fg'] = TEXT_COLOR_HEADING
+        self.master.spotLabel['bg'] = config.background
+        self.master.spotLabel['fg'] = config.text_heading
         self.master.spotLabel['font'] = self.master.label_font
         self.master.spotLabel.grid(row=7, column=0, padx=0, pady=0, sticky=tk.W)
-        # Values
-        # self.master.spotValue = tk.StringVar()
-        # self.master.spot = tk.Entry(self.master, width=50)
-        # self.master.spot['font'] = self.master.spot_font
-        # self.master.spot['bg'] = BACKGROUND_COLOR
-        # self.master.spot['fg'] = TEXT_COLOR_RADIO
-        # self.master.spot.grid(row=8, column=0, columnspan=2)
-        #self.master.list_items = tk.Variable(value=self.spot_items)
 
         # Changed the Spot's widget into a ListBox that will scroll away as more spots come in.
         self.master.spot_var = tk.StringVar()
         self.master.spot_var.set(self.spot_items)
         self.master.spotBox = tk.Listbox(self.master, listvariable=self.master.spot_var, height=5, width=30)
-        self.master.spotBox['bg'] = BACKGROUND_COLOR
-        self.master.spotBox['fg'] = TEXT_COLOR_HEADING
+        self.master.spotBox['bg'] = config.background
+        self.master.spotBox['fg'] = config.text_heading
         self.master.spotBox['font'] = self.master.spot_font
         self.master.spotBox.grid(row=7, column=0, columnspan=2, padx=0, pady=0)
 
-
-
-
     def create_radio_widgets(self):
-        # Fonts to use
-        self.master.label_font = tkFont.Font(family="Courier New", size=LABEL_FONT_SIZE, weight='bold')
-        self.master.radio_font = tkFont.Font(family="Courier New", size=RADIO_FONT_SIZE, weight='bold')
-
         # Labels
         self.master.radio1Label = tk.Label(self.master)
         self.master.radio1Label['text'] = 'Radio #1'
-        self.master.radio1Label['bg'] = BACKGROUND_COLOR
-        self.master.radio1Label['fg'] = TEXT_COLOR_HEADING
+        self.master.radio1Label['bg'] = config.background
+        self.master.radio1Label['fg'] = config.text_heading
         self.master.radio1Label['font'] = self.master.label_font
         self.master.radio1Label.grid(row=0,column=0,padx=0,pady=0)
 
         self.master.radio2Label = tk.Label(self.master)
         self.master.radio2Label['text'] = 'Radio #2'
-        self.master.radio2Label['bg'] = BACKGROUND_COLOR
-        self.master.radio2Label['fg'] = TEXT_COLOR_HEADING
+        self.master.radio2Label['bg'] = config.background
+        self.master.radio2Label['fg'] = config.text_heading
         self.master.radio2Label['font'] = self.master.label_font
         self.master.radio2Label.grid(row=0,column=1,padx=0,pady=0)
 
@@ -202,30 +180,23 @@ class App(tk.Frame):
         self.master.radio1 = tk.Entry(self.master, width=11)
         self.master.radio1['text'] = self.master.radio1Value
         self.master.radio1['font'] = self.master.radio_font
-        self.master.radio1['bg'] = BACKGROUND_COLOR
-        self.master.radio1['fg'] = TEXT_COLOR_RADIO
+        self.master.radio1['bg'] = config.background
+        self.master.radio1['fg'] = config.text_radio
         self.master.radio1.grid(row=1,column=0, rowspan=2)
 
         self.master.radio2Value = tk.StringVar()
         self.master.radio2 = tk.Entry(self.master, width=11)
         self.master.radio2['text'] = self.master.radio2Value
         self.master.radio2['font'] = self.master.radio_font
-        self.master.radio2['bg'] = BACKGROUND_COLOR
-        self.master.radio2['fg'] = TEXT_COLOR_RADIO
+        self.master.radio2['bg'] = config.background
+        self.master.radio2['fg'] = config.text_radio
         self.master.radio2.grid(row=1,column=1, rowspan=2)
 
-
-
     def create_qso_widgets(self):
-        # Fonts to use
-        self.master.label_font = tkFont.Font(family="Courier New", size=LABEL_FONT_SIZE, weight='bold')
-        self.master.serial_number_font = tkFont.Font(family="Courier New", size=SN_FONT_SIZE, weight='bold')
-        self.master.qso_font = tkFont.Font(family="Courier New", size=QSO_FONT_SIZE, weight='bold')
-
         self.master.serial_qsoLabel = tk.Label(self.master)
         self.master.serial_qsoLabel['text'] = 'Previous QSO'
-        self.master.serial_qsoLabel['bg'] = BACKGROUND_COLOR
-        self.master.serial_qsoLabel['fg'] = TEXT_COLOR_HEADING
+        self.master.serial_qsoLabel['bg'] = config.background
+        self.master.serial_qsoLabel['fg'] = config.text_heading
         self.master.serial_qsoLabel['font'] = self.master.label_font
         self.master.serial_qsoLabel.grid(row=3, column=0, columnspan=1)
 
@@ -233,63 +204,39 @@ class App(tk.Frame):
         self.master.call = tk.Entry(self.master, width=10)
         self.master.call['textvariable'] = self.master.callValue
         self.master.call['font'] = self.master.qso_font
-        self.master.call['bg'] = BACKGROUND_COLOR
-        self.master.call['fg'] = TEXT_COLOR_SERIAL
+        self.master.call['bg'] = config.background
+        self.master.call['fg'] = config.text_serial_num
         self.master.call.grid(row=4,column=0,rowspan=1,columnspan=1)
 
         self.master.rcvnrqthValue = tk.StringVar()
         self.master.rcvnrqth = tk.Entry(self.master, width=10)
         self.master.rcvnrqth['textvariable'] = self.master.rcvnrqthValue
         self.master.rcvnrqth['font'] = self.master.qso_font
-        self.master.rcvnrqth['bg'] = BACKGROUND_COLOR
-        self.master.rcvnrqth['fg'] = TEXT_COLOR_SERIAL
+        self.master.rcvnrqth['bg'] = config.background
+        self.master.rcvnrqth['fg'] = config.text_serial_num
         self.master.rcvnrqth.grid(row=5, column=0, rowspan=1, columnspan=1)
-
-        #self.master.rcvnrValue = tk.StringVar()
-        #self.master.rcvnr = tk.Entry(self.master, width=10)
-        #self.master.rcvnr['textvariable'] = self.master.rcvnrValue
-        #self.master.rcvnr['font'] = self.master.qso_font
-        #self.master.rcvnr['bg'] = BACKGROUND_COLOR
-        #self.master.rcvnr['fg'] = TEXT_COLOR_SERIAL
-        #self.master.rcvnr.grid(row=5, column=0, rowspan=1, columnspan=1)
-
-        #self.master.qthValue = tk.StringVar()
-        #self.master.qth = tk.Entry(self.master, width=3)
-        #self.master.qth['textvariable'] = self.master.qthValue
-        #self.master.qth['font'] = self.master.qso_font
-        #self.master.qth['bg'] = BACKGROUND_COLOR
-        #self.master.qth['fg'] = TEXT_COLOR_SERIAL
-        #self.master.qth.grid(row=6, column=0, rowspan=1, columnspan=1)
-
-        #self.master.bandValue = tk.StringVar()
-        #self.master.band = tk.Entry(self.master, width=10)
-        #self.master.band['textvariable'] = self.master.bandValue
-        #self.master.band['font'] = self.master.qso_font
-        #self.master.band['bg'] = BACKGROUND_COLOR
-        #self.master.band['fg'] = TEXT_COLOR_SERIAL
-        #self.master.band.grid(row=6, column=0, rowspan=1, columnspan=1)
 
         self.master.modeValue = tk.StringVar()
         self.master.mode = tk.Entry(self.master, width=10)
         self.master.mode['textvariable'] = self.master.modeValue
         self.master.mode['font'] = self.master.qso_font
-        self.master.mode['bg'] = BACKGROUND_COLOR
-        self.master.mode['fg'] = TEXT_COLOR_SERIAL
+        self.master.mode['bg'] = config.background
+        self.master.mode['fg'] = config.text_serial_num
         self.master.mode.grid(row=6, column=0, rowspan=1, columnspan=1)
 
         self.master.serial_numberLabel = tk.Label(self.master)
         self.master.serial_numberLabel['text'] = 'Next Serial Number'
-        self.master.serial_numberLabel['bg'] = BACKGROUND_COLOR
-        self.master.serial_numberLabel['fg'] = TEXT_COLOR_HEADING
+        self.master.serial_numberLabel['bg'] = config.background
+        self.master.serial_numberLabel['fg'] = config.text_heading
         self.master.serial_numberLabel['font'] = self.master.label_font
         self.master.serial_numberLabel.grid(row=3,column=1,columnspan=1)
 
         self.master.serial_numberValue = tk.StringVar()
         self.master.serial_number = tk.Entry(self.master, width=4)
         self.master.serial_number['textvariable'] = self.master.serial_numberValue
-        self.master.serial_number['font'] = self.master.serial_number_font
-        self.master.serial_number['bg'] = BACKGROUND_COLOR
-        self.master.serial_number['fg'] = TEXT_COLOR_SERIAL
+        self.master.serial_number['font'] = self.master.serial_num_font
+        self.master.serial_number['bg'] = config.background
+        self.master.serial_number['fg'] = config.text_serial_num
         self.master.serial_number.grid(row=4,column=1,rowspan=3, columnspan=1)
 
         
@@ -304,19 +251,125 @@ class App(tk.Frame):
     def start_udp_listener(self):
         self.udp_listener = UDP_Listener(self.sock, self)
         self.udp_listener.start()
+
+class Config():
+    def __init__(self, filename): # Default settings
+        self.filename = filename
+        # app
+        self.title = 'N1MM UDP Monitor'
+        self.callsign = 'KN4FTT'
+        # Network
+        self.udp_ip = '127.0.0.1'
+        self.udp_port = 12060
+        self.udp_buf_size = 8192
         
- 
+    def read_config(self):
+        config_parser = configparser.ConfigParser()
+        config_parser.read(self.filename)
+        
+        # app
+        if 'title' in config_parser['app'].keys():
+            self.title = config_parser['app']['title']
+        if 'callsign' in config_parser['app'].keys():
+            self.callsign = config_parser['app']['callsign']
+        # net
+        if 'udp_ip' in config_parser['net'].keys():
+            self.udp_ip = config_parser['net']['udp_ip']
+        if 'udp_port' in config_parser['net'].keys():
+            self.udp_port = int(config_parser['net']['udp_port'])
+        if 'udp_buf_size' in config_parser['net'].keys():
+            self.udp_buf_size = int(config_parser['net']['udp_buf_size'])
+        # size
+        if 'serial_num' in config_parser['size'].keys():
+            self.serial_num = config_parser['size']['serial_num']
+        if 'radio' in config_parser['size'].keys():
+            self.radio = config_parser['size']['radio']
+        if 'label' in config_parser['size'].keys():
+            self.label = config_parser['size']['label']
+        if 'qso' in config_parser['size'].keys():
+            self.qso = config_parser['size']['qso']
+        if 'spot' in config_parser['size'].keys():
+            self.spot = config_parser['size']['spot']
+        # font
+        if 'spot_font' in config_parser['font'].keys():
+            self.spot_font = config_parser['font']['spot_font']
+        if 'label_font' in config_parser['font'].keys():
+            self.label_font = config_parser['font']['label_font']
+        if 'serial_num_font' in config_parser['font'].keys():
+            self.serial_num_font = config_parser['font']['serial_num_font']
+        if 'radio_font' in config_parser['font'].keys():
+            self.radio_font = config_parser['font']['radio_font']
+        if 'qso_font' in config_parser['font'].keys():
+            self.qso_font = config_parser['font']['qso_font']
+        # color
+        if 'background' in config_parser['color'].keys():
+            self.background = config_parser['color']['background']
+        if 'text_heading' in config_parser['color'].keys():
+            self.text_heading = config_parser['color']['text_heading']
+        if 'text_serial_num' in config_parser['color'].keys():
+            self.text_serial_num = config_parser['color']['text_serial_num']
+        if 'text_radio' in config_parser['color'].keys():
+            self.text_radio = config_parser['color']['text_radio']
+        # screen
+        if 'width' in config_parser['screen'].keys():
+            self.width = config_parser['screen']['width']
+        if 'height' in config_parser['screen'].keys():
+            self.height = config_parser['screen']['height']
+        if 'full' in config_parser['screen'].keys():
+            self.full = config_parser['screen']['full'] == 'True'
+            
+def get_display_size():
+    root = tk.Tk()
+    root.update_idletasks()
+    root.attributes('-fullscreen', True)
+    root.state('iconic')
+    width = root.winfo_screenwidth()
+    height = root.winfo_screenheight()
+    root.destroy()
+    return width, height
+
+def is_valid_file(parser, arg):
+    if not os.path.exists(arg):
+        parser.error(f"File {arg} does not exist!")
+    else:
+        return arg
+    
 def main():
+    parser = argparse.ArgumentParser(prog='n1mm_udp_monitor'
+                                     ,description='A remote monitoring app for use with N1MM+ Ham Radio logger.'
+                                     ,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--config'
+                        ,dest="filename"
+                        ,required=True
+                        ,type=lambda x: is_valid_file(parser, x)
+                        ,default='n1mm_udp_monitor.ini'
+                        ,help='configuration_file.ini'
+                        )
+    args = parser.parse_args()
+    #print(args)
+    global config
+    config = Config(args.filename)
+    config.read_config()
+    
     sock = socket.socket(socket.AF_INET, # Internet
                           socket.SOCK_DGRAM) # UDP
-    sock.bind((UDP_IP, UDP_PORT))
+    sock.bind((config.udp_ip, config.udp_port))
+    
     root = tk.Tk()
-    root.geometry('1024x600')
-    root.configure(background=BACKGROUND_COLOR)
-    root.wm_title('N1MM UDP Mobile Multi-Op Monitor')
+    if config.full:
+        width, height = get_display_size()
+    else:
+        width  = config.width
+        height = config.height
+    #root.geometry('1024x600')
+    root.geometry(f'{width}x{height}')
+    
+    root.configure(background=config.background)
+    root.wm_title(f'{config.title} - {config.callsign}')
 
     app = App(sock,master=root)
     app.mainloop()
     
 if __name__ == '__main__':
     main()
+    
