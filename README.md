@@ -7,7 +7,9 @@ N1MM+ can send out UDP packets to provide information to remote systems like a C
 
 To run you need a properly installed python3 instance then you run with:
 
-python n1mm_udp_monitor.py
+python n1mm_udp_monitor.py --config=n1mm_udp_monitor.ini
+
+Of course you can edit the ini file to suite your needs and even have a different config for different purposes.
 
 73<br>
 Ric<br>
